@@ -19,7 +19,7 @@ def crawler():
     sheet = client.open_by_key('1BJLD-NZYsaU8mFCyXjXCgnTAplV6u4OgCP5-nqRi1yA').sheet1
     stocks = sheet.get_all_records()
     print(stocks)
-    count = 5
+    count = 0
     for i in stockdata :
         count = count + 1
         sheet.insert_row(i,count)
