@@ -1,0 +1,4 @@
+venv/pip-selfcheck.json
+.vscode/
+.venv/
+.idea/
