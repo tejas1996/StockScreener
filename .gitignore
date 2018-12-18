@@ -2,3 +2,5 @@ venv/pip-selfcheck.json
 .vscode/
 .venv/
 .idea/
+__pycache__/
+test.py
