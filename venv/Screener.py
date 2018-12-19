@@ -38,6 +38,11 @@ class Screener:
             last = last.assign(COMPANYNAME=row['Company Name'], INDUSTRY=row['Industry'])
             
             # get quandl data from 
+            today = datetime.today()
+            begin = today - timedelta(days=300)
+            end = today - timedelta(days=1)
+            history = self.getHistory(last['SYMBOL'], begin, end)
+            indicators = self.calculateIndicators(history)
 
             # merge with reports dataframe 
             report = report.append(last, sort=False)
@@ -45,22 +50,17 @@ class Screener:
         # store as csv 
         outPath = ".\\venv\\reports\\report-%s.csv" % (date.today().strftime("%Y-%m-%d"))
         report.to_csv(outPath)
-        
-        
-            # download quantdl data - done
-            # download latest stock eod data - done 
-            # merge eod data with quantdl csvs 
-            # calculate indicators and save all data to dataFrame 
-            # save entire dataframe as csv with date 
-            # upload to sheets 
-        # pass
+
+        # merge eod data with quantdl csvs 
+        # calculate indicators and save all data to dataFrame 
+        # upload to sheets 
 
     # upload processed csv/dataframe to sheets 
     def uploadToSheets(self, parameter_list):
         pass
 
-    def calculateIndicators(self, parameter_list):
-        # may be use talib directly or any similar library 
+    def calculateIndicators(self, timeseries):
+        print(timeseries)
         pass
     
     # get eod data from nse using nsepy 
@@ -70,7 +70,7 @@ class Screener:
         return get_price_list(dt=dt)
 
     # get stock history from quantdl 
-    def getHistory(self, symbol, begin, end, frequency="daily", forceUpdate=False, authToken=None):
+    def getHistory(self, symbol, begin, end, frequency="daily", forceDownload=False, authToken=None):
         # check if file already exists 
         storage = ".\\venv\\history"
         if not os.path.exists(storage):
@@ -83,7 +83,9 @@ class Screener:
             params = {
                 "trim_start": begin,
                 "trim_end": end,
-                "collapse": frequency
+                "collapse": frequency,
+                "order": "asc"
+                # "rows": 300
             }
             
             if authToken is not None:
@@ -100,7 +102,13 @@ class Screener:
 
 if __name__ == "__main__":
     screener = Screener("ind_test")
-    screener.run()
+    today = datetime.today()
+    begin = today - timedelta(days=300)
+    end = today - timedelta(days=1)
+    history = screener.getHistory('ASIANPAINT', begin, end)
+    indicators = screener.calculateIndicators(history)
+
+    # screener.run()
     # today = datetime.today()
     # begin = today - timedelta(days=30)
     # screener.getHistory("mindaind", begin.strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
