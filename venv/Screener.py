@@ -1,45 +1,59 @@
-# create universes (indices)
-# create download entire universe from quantdl (data for all stocks in index)
-# daily - download nse eod prices and update old data 
-# daily - calculate all required indicators 
-# daily - push all indicators to a csv file 
-# daily - push csv to google sheets - already done 
+# Ta-Lib can be downloaded for windows 64 bit from - https://www.lfd.uci.edu/~gohlke/pythonlibs/
+# Download package and run pip install TA_Lib-0.4.17-cp37-cp37m-win_amd64.whl (cp37 is cpython 3.7)
+# On linux it should be simple pip install TA-Lib
 
 # import calcMovingAverage
 # from bs4 import BeautifulSoup
 # from oauth2client.service_account import ServiceAccountCredentials
 # import gspread
 import datetime
-import json, os, datetime, requests
-from datetime import datetime, timedelta
+import json, os, requests
+from datetime import date, datetime, timedelta
 from nsepy.history import get_price_list
 import pandas as pd 
 
 class Screener:
 
     universe = None
-    data = None
+    # data = None
 
     # constructor
     def __init__(self, universe):
         # load universe 
         path = ".\\venv\\indices\\%s.csv" % (universe)
-        print(path)
         if os.path.exists(path):
             self.universe = pd.read_csv(path, header=0)
         else : 
             raise Exception("Universe not found")
+        
+        # data = pd.DataFrame()
 
     def run(self):
-        # load universe - done
-        # for each stock in universe 
+        eodData = self.getEodData() # get todays EOD data 
+        eodData = eodData.drop(['SERIES'], axis=1)
+        report = pd.DataFrame()
+        for index, row in self.universe.iterrows(): # process universe 
+            # merge eod data with universe 
+            last = eodData.loc[eodData["SYMBOL"]==row["Symbol"]]
+            last = last.assign(COMPANYNAME=row['Company Name'], INDUSTRY=row['Industry'])
+            
+            # get quandl data from 
+
+            # merge with reports dataframe 
+            report = report.append(last, sort=False)
+
+        # store as csv 
+        outPath = ".\\venv\\reports\\report-%s.csv" % (date.today().strftime("%Y-%m-%d"))
+        report.to_csv(outPath)
+        
+        
             # download quantdl data - done
             # download latest stock eod data - done 
             # merge eod data with quantdl csvs 
             # calculate indicators and save all data to dataFrame 
             # save entire dataframe as csv with date 
             # upload to sheets 
-        pass
+        # pass
 
     # upload processed csv/dataframe to sheets 
     def uploadToSheets(self, parameter_list):
@@ -50,8 +64,10 @@ class Screener:
         pass
     
     # get eod data from nse using nsepy 
-    def getEodData(self):
-        return get_price_list(dt=datetime.today())
+    def getEodData(self, dt=None):
+        if dt is None: 
+            dt = date.today()
+        return get_price_list(dt=dt)
 
     # get stock history from quantdl 
     def getHistory(self, symbol, begin, end, frequency="daily", forceUpdate=False, authToken=None):
@@ -84,6 +100,7 @@ class Screener:
 
 if __name__ == "__main__":
     screener = Screener("ind_test")
+    screener.run()
     # today = datetime.today()
     # begin = today - timedelta(days=30)
     # screener.getHistory("mindaind", begin.strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
