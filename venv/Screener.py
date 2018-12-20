@@ -79,6 +79,7 @@ class Screener:
 
         csvFile = os.path.join(storage, "%s-quandl.csv" % (symbol))
         if not os.path.exists(csvFile) or forceDownload:
+            print("Cache file not found downloading from quandl")
             url = "http://www.quandl.com/api/v1/datasets/NSE/%s.csv" % (symbol)
             params = {
                 "trim_start": begin,

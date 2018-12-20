@@ -3,4 +3,3 @@ venv/pip-selfcheck.json
 .venv/
 .idea/
 __pycache__/
-test.py
