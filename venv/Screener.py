@@ -11,6 +11,8 @@ import json, os, requests
 from datetime import date, datetime, timedelta
 from nsepy.history import get_price_list
 import pandas as pd 
+import talib
+from ta import *
 
 class Screener:
 
@@ -32,20 +34,22 @@ class Screener:
         eodData = self.getEodData() # get todays EOD data 
         eodData = eodData.drop(['SERIES'], axis=1)
         report = pd.DataFrame()
+        today = datetime.today()
+        begin = today - timedelta(days=300)
+        end = today - timedelta(days=1)
         for index, row in self.universe.iterrows(): # process universe 
             # merge eod data with universe 
             last = eodData.loc[eodData["SYMBOL"]==row["Symbol"]]
             last = last.assign(COMPANYNAME=row['Company Name'], INDUSTRY=row['Industry'])
             
             # get quandl data from 
-            today = datetime.today()
-            begin = today - timedelta(days=300)
-            end = today - timedelta(days=1)
             history = self.getHistory(last['SYMBOL'], begin, end)
             indicators = self.calculateIndicators(history)
+            latestIndicators = indicators.tail(1) # take only last row 
+            finalRow = pd.concat([last, latestIndicators], axis = 1)
 
             # merge with reports dataframe 
-            report = report.append(last, sort=False)
+            report = report.append(finalRow, sort=False)
 
         # store as csv 
         outPath = ".\\venv\\reports\\report-%s.csv" % (date.today().strftime("%Y-%m-%d"))
@@ -60,8 +64,36 @@ class Screener:
         pass
 
     def calculateIndicators(self, timeseries):
-        print(timeseries)
-        pass
+        indicators = pd.DataFrame()
+        close = eod['Close']
+        high = eod['High']
+        low = eod['Low']
+        open1 = eod['Open']
+        last = eod['Last']
+
+        indicators['sma10'] = talib.SMA(close, timeperiod=10)
+        indicators['sma50'] = talib.SMA(close, timeperiod=50)
+        indicators['sma200'] = talib.SMA(close, timeperiod=200)
+        indicators['ema9'] = talib.EMA(close, timeperiod=9)
+        indicators['ema21'] = talib.EMA(close, timeperiod=21)
+        bbupper, bbmiddle, bblower = talib.BBANDS(close, timeperiod=14, nbdevup=2, nbdevdn=2, matype=0)
+        indicators['bbupper'] = bbupper
+        indicators['bblower'] = bblower
+        indicators['bbp'] = (last - lower) / (upper-lower)
+        indicators['adx'] = talib.ADX(high, low, close, timeperiod=14)
+        indicators['atr'] = talib.ATR(high, low, close, timeperiod=14)
+        macd, macdsignal = talib.MACD(close, fastperiod=12, slowperiod=26, signalperiod=9)
+        indicators['macd'] = macd
+        indicators['macdsignal'] = macdsignal
+        indicators['roc'] = talib.ROC(close, timeperiod=14)
+        indicators['rsi'] = talib.RSI(close, timeperiod=14)
+        indicators['dojiCandle'] = talib.CDLDOJI(open1, high, low, close)
+        indicators['beta'] = talib.BETA(high, low, timeperiod=30)
+        indicators['stddev'] = talib.STDDEV(close, timeperiod=14, nbdev=1)
+        indicators['dcUpper'] = donchian_channel_hband(close, n=20, fillna=False)
+        indicators['dcLower'] = donchian_channel_lband(close, n=20, fillna=False)
+
+        return indicators
     
     # get eod data from nse using nsepy 
     def getEodData(self, dt=None):
@@ -103,13 +135,13 @@ class Screener:
 
 if __name__ == "__main__":
     screener = Screener("ind_test")
-    today = datetime.today()
-    begin = today - timedelta(days=300)
-    end = today - timedelta(days=1)
-    history = screener.getHistory('ASIANPAINT', begin, end)
-    indicators = screener.calculateIndicators(history)
+    # today = datetime.today()
+    # begin = today - timedelta(days=300)
+    # end = today - timedelta(days=1)
+    # history = screener.getHistory('ASIANPAINT', begin, end)
+    # indicators = screener.calculateIndicators(history)
 
-    # screener.run()
+    screener.run()
     # today = datetime.today()
     # begin = today - timedelta(days=30)
     # screener.getHistory("mindaind", begin.strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
