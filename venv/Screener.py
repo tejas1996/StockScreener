@@ -13,6 +13,7 @@ from nsepy.history import get_price_list
 import pandas as pd 
 import talib
 from ta import *
+import numpy as np
 
 class Screener:
 
@@ -31,7 +32,7 @@ class Screener:
         # data = pd.DataFrame()
 
     def run(self):
-        eodData = self.getEodData() # get todays EOD data 
+        eodData = self.getEodData() # get todays EOD data date(2018, 12, 28)
         eodData = eodData.drop(['SERIES'], axis=1)
         report = pd.DataFrame()
         today = datetime.today()
@@ -41,23 +42,30 @@ class Screener:
             # merge eod data with universe 
             last = eodData.loc[eodData["SYMBOL"]==row["Symbol"]]
             last = last.assign(COMPANYNAME=row['Company Name'], INDUSTRY=row['Industry'])
+            symbol = last['SYMBOL'].values[0]
             
             # get quandl data from 
-            history = self.getHistory(last['SYMBOL'], begin, end)
+            history = self.getHistory(symbol, begin, end)
             indicators = self.calculateIndicators(history)
             latestIndicators = indicators.tail(1) # take only last row 
-            finalRow = pd.concat([last, latestIndicators], axis = 1)
+            # finalRow = pd.concat([last, latestIndicators], axis = 1)
+            
+            lastColumns = last.columns.values
+            lastValues = last.values[0]
+            indiColumns = latestIndicators.columns.values
+            indiValues = latestIndicators.values[0]
+
+            columns = np.concatenate((lastColumns, indiColumns))
+            values = np.concatenate((lastValues, indiValues))
+            finalRow = dict(zip(columns, values))
 
             # merge with reports dataframe 
-            report = report.append(finalRow, sort=False)
+            report = report.append(finalRow, sort=False, ignore_index=True)
+            report = report[columns]
 
         # store as csv 
         outPath = ".\\venv\\reports\\report-%s.csv" % (date.today().strftime("%Y-%m-%d"))
         report.to_csv(outPath)
-
-        # merge eod data with quantdl csvs 
-        # calculate indicators and save all data to dataFrame 
-        # upload to sheets 
 
     # upload processed csv/dataframe to sheets 
     def uploadToSheets(self, parameter_list):
@@ -65,11 +73,11 @@ class Screener:
 
     def calculateIndicators(self, timeseries):
         indicators = pd.DataFrame()
-        close = eod['Close']
-        high = eod['High']
-        low = eod['Low']
-        open1 = eod['Open']
-        last = eod['Last']
+        close = timeseries['Close']
+        high = timeseries['High']
+        low = timeseries['Low']
+        open1 = timeseries['Open']
+        last = timeseries['Last']
 
         indicators['sma10'] = talib.SMA(close, timeperiod=10)
         indicators['sma50'] = talib.SMA(close, timeperiod=50)
@@ -79,10 +87,10 @@ class Screener:
         bbupper, bbmiddle, bblower = talib.BBANDS(close, timeperiod=14, nbdevup=2, nbdevdn=2, matype=0)
         indicators['bbupper'] = bbupper
         indicators['bblower'] = bblower
-        indicators['bbp'] = (last - lower) / (upper-lower)
+        indicators['bbp'] = (last - bblower) / (bbupper-bblower)
         indicators['adx'] = talib.ADX(high, low, close, timeperiod=14)
         indicators['atr'] = talib.ATR(high, low, close, timeperiod=14)
-        macd, macdsignal = talib.MACD(close, fastperiod=12, slowperiod=26, signalperiod=9)
+        macd, macdsignal, macdhist = talib.MACD(close, fastperiod=12, slowperiod=26, signalperiod=9)
         indicators['macd'] = macd
         indicators['macdsignal'] = macdsignal
         indicators['roc'] = talib.ROC(close, timeperiod=14)
