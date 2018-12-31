@@ -43,6 +43,7 @@ class Screener:
             last = eodData.loc[eodData["SYMBOL"]==row["Symbol"]]
             last = last.assign(COMPANYNAME=row['Company Name'], INDUSTRY=row['Industry'])
             symbol = last['SYMBOL'].values[0]
+            symbol = symbol.replace('-', '_')
             
             # get quandl data from 
             history = self.getHistory(symbol, begin, end)
